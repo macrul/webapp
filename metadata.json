@@ -1,0 +1,5 @@
+{
+  "name": "DM Co-Pilot",
+  "description": "A supportive AI assistant for young Dungeon Masters, featuring card generation, story recovery, and safety guidance.",
+  "requestFramePermissions": []
+}
