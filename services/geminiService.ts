@@ -2,29 +2,15 @@ import { GoogleGenAI, Content } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from '../constants';
 import { Message, PlayerMessage } from '../types';
 
-// Access API Key from Vite environment variables (VITE_API_KEY) or fallback to standard process.env
-// Note: When deploying to Vercel, ensure you set the Environment Variable 'VITE_API_KEY'
-const API_KEY = import.meta.env.VITE_API_KEY || process.env.API_KEY;
-
-let ai: GoogleGenAI | null = null;
-
-if (API_KEY) {
-  try {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-  } catch (error) {
-    console.error("Failed to initialize GoogleGenAI client:", error);
-  }
-} else {
-  console.warn("VITE_API_KEY is missing. AI features will not work.");
-}
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY
+// as per @google/genai coding guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- Co-Pilot Assistant Logic ---
 export const sendMessageToGemini = async (
   history: Message[],
   newMessage: string
 ): Promise<string> => {
-  if (!ai) return "Error: API Key is missing. Please check your settings.";
-  
   try {
     const model = 'gemini-3-flash-preview';
     
@@ -58,8 +44,6 @@ export const sendMessageToGemini = async (
 
 // --- Image Generation (Nano Banana) ---
 export const generateGameImage = async (prompt: string): Promise<string | null> => {
-  if (!ai) return null;
-
   try {
     // Using gemini-2.5-flash-image (Nano Banana)
     const response = await ai.models.generateContent({
@@ -90,8 +74,6 @@ export const getAiDmResponse = async (
   chatHistory: PlayerMessage[],
   campaignContext: string
 ): Promise<string> => {
-  if (!ai) return "I cannot speak right now (Missing API Key).";
-
   try {
     const model = 'gemini-3-flash-preview';
     
