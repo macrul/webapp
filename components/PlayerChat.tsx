@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Campaign, PlayerMessage } from '../types';
-import { MessageSquare, Users, Send, Dice5, Image as ImageIcon, Sparkles, Loader2, Video } from 'lucide-react';
+import { Send, Dice5, Image as ImageIcon, Sparkles, Loader2, Video } from 'lucide-react';
 import { generateGameImage, getAiDmResponse } from '../services/geminiService';
 
 interface PlayerChatProps {
@@ -8,65 +8,102 @@ interface PlayerChatProps {
   onUpdateCampaign: (updatedCampaign: Campaign) => void;
 }
 
-const DiceIcon = ({ sides }: { sides: number }) => {
-  const commonClasses = "fill-fantasy-800 stroke-fantasy-muted stroke-2 group-hover:stroke-fantasy-accent group-hover:fill-fantasy-700 transition-all";
-  
+const getDiceStyles = (sides: number) => {
   switch(sides) {
-    case 4:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <path d="M12 2L22 22H2L12 2Z" className={commonClasses} />
-           <text x="12" y="17" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D4</text>
-        </svg>
-      );
-    case 6:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <rect x="4" y="4" width="16" height="16" rx="2" className={commonClasses} />
-           <text x="12" y="14" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D6</text>
-        </svg>
-      );
-    case 8:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <path d="M12 2L22 12L12 22L2 12L12 2Z" className={commonClasses} />
-           <text x="12" y="14" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D8</text>
-        </svg>
-      );
-    case 10:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <path d="M12 2L22 10L12 22L2 10L12 2Z" className={commonClasses} />
-           <path d="M2 10L22 10" className="stroke-fantasy-900/20 stroke-1 pointer-events-none" />
-           <text x="12" y="14" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D10</text>
-        </svg>
-      );
-    case 12:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <path d="M12 2L21.5 9L17.9 20.1H6.1L2.5 9L12 2Z" className={commonClasses} />
-           <text x="12" y="14" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D12</text>
-        </svg>
-      );
-    case 20:
-      return (
-        <svg viewBox="0 0 24 24" className="w-8 h-8">
-           <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" className={commonClasses} />
-           <text x="12" y="14" textAnchor="middle" fontSize="6" fill="currentColor" className="text-fantasy-text font-bold">D20</text>
-        </svg>
-      );
-    default:
-      return <Dice5 size={24} />;
+    case 4: return { text: 'text-emerald-300', fill: 'fill-emerald-900/40', stroke: 'stroke-emerald-500' };
+    case 6: return { text: 'text-blue-300', fill: 'fill-blue-900/40', stroke: 'stroke-blue-500' };
+    case 8: return { text: 'text-violet-300', fill: 'fill-violet-900/40', stroke: 'stroke-violet-500' };
+    case 10: return { text: 'text-fuchsia-300', fill: 'fill-fuchsia-900/40', stroke: 'stroke-fuchsia-500' };
+    case 12: return { text: 'text-orange-300', fill: 'fill-orange-900/40', stroke: 'stroke-orange-500' };
+    case 20: return { text: 'text-red-300', fill: 'fill-red-900/40', stroke: 'stroke-red-500' };
+    default: return { text: 'text-gray-300', fill: 'fill-gray-900/40', stroke: 'stroke-gray-500' };
   }
 };
 
-const DiceButton = ({ label, sides, onClick }: { label: string, sides: number, onClick: (s: number) => void }) => (
+const DiceIcon = ({ sides, isRolling }: { sides: number, isRolling?: boolean }) => {
+  const styles = getDiceStyles(sides);
+  const commonClasses = `${styles.fill} ${styles.stroke} stroke-2 transition-all duration-300`;
+  const textClass = `${styles.text} font-bold select-none pointer-events-none`;
+  const containerClass = `w-10 h-10 transition-transform duration-500 ${isRolling ? 'animate-spin' : 'group-hover:scale-110'}`;
+
+  const content = (() => {
+    switch(sides) {
+      case 4:
+        return (
+          <>
+             <path d="M12 2L22 22H2L12 2Z" className={commonClasses} />
+             <text x="12" y="17" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D4</text>
+          </>
+        );
+      case 6:
+        return (
+          <>
+             <rect x="4" y="4" width="16" height="16" rx="3" className={commonClasses} />
+             <text x="12" y="14.5" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D6</text>
+          </>
+        );
+      case 8:
+        return (
+          <>
+             <path d="M12 2L22 12L12 22L2 12L12 2Z" className={commonClasses} />
+             <text x="12" y="14.5" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D8</text>
+          </>
+        );
+      case 10:
+        return (
+          <>
+             <path d="M12 1.5L22 10L12 22.5L2 10L12 1.5Z" className={commonClasses} />
+             <path d="M2 10L22 10" className={`stroke-1 opacity-30 ${styles.stroke}`} />
+             <text x="12" y="15" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D10</text>
+          </>
+        );
+      case 12:
+        return (
+          <>
+             <path d="M12 2L21.5 9L17.9 20.1H6.1L2.5 9L12 2Z" className={commonClasses} />
+             <text x="12" y="14.5" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D12</text>
+          </>
+        );
+      case 20:
+        return (
+          <>
+             <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" className={commonClasses} />
+             <text x="12" y="14.5" textAnchor="middle" fontSize="6" fill="currentColor" className={textClass}>D20</text>
+          </>
+        );
+      default:
+        return <Dice5 size={24} className={styles.text} />;
+    }
+  })();
+
+  return (
+    <svg viewBox="0 0 24 24" className={containerClass}>
+      {content}
+    </svg>
+  );
+};
+
+interface DiceButtonProps {
+  sides: number;
+  isRolling: boolean;
+  onClick: (s: number) => void;
+}
+
+const DiceButton: React.FC<DiceButtonProps> = ({ sides, isRolling, onClick }) => (
   <button 
     onClick={() => onClick(sides)}
-    className="flex flex-col items-center justify-center p-1 rounded-lg hover:bg-fantasy-800 transition-all group scale-100 hover:scale-110 active:scale-95"
+    className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-fantasy-800/50 transition-all group active:scale-95 relative"
     title={`Roll D${sides}`}
+    disabled={isRolling}
   >
-    <DiceIcon sides={sides} />
+    <div className="relative">
+      <DiceIcon sides={sides} isRolling={isRolling} />
+      {isRolling && (
+         <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles size={16} className="text-white animate-pulse" />
+         </div>
+      )}
+    </div>
   </button>
 );
 
@@ -76,6 +113,7 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
   const [showImgPrompt, setShowImgPrompt] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
+  const [rollingSide, setRollingSide] = useState<number | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -91,25 +129,32 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
   };
 
   const handleDMDiceRoll = (sides: number) => {
-    const result = Math.floor(Math.random() * sides) + 1;
-    const msg: PlayerMessage = {
-      id: Date.now().toString(),
-      senderId: campaign.isAiDm ? 'user' : 'dm',
-      senderName: campaign.isAiDm ? 'You' : 'DM (You)',
-      content: `Rolled D${sides}:`,
-      timestamp: Date.now(),
-      isRoll: true,
-      rollResult: {
-        total: result,
-        formula: `1d${sides}`
-      }
-    };
-    addMessage(msg);
+    if (rollingSide !== null) return; // Prevent spamming while rolling
+    setRollingSide(sides);
 
-    // If AI DM is on, AI might react to the roll
-    if (campaign.isAiDm) {
-      triggerAiDm([...campaign.playerChat, msg]);
-    }
+    // Simulate roll duration
+    setTimeout(() => {
+        const result = Math.floor(Math.random() * sides) + 1;
+        const msg: PlayerMessage = {
+          id: Date.now().toString(),
+          senderId: campaign.isAiDm ? 'user' : 'dm',
+          senderName: campaign.isAiDm ? 'You' : 'DM (You)',
+          content: `Rolled D${sides}:`,
+          timestamp: Date.now(),
+          isRoll: true,
+          rollResult: {
+            total: result,
+            formula: `1d${sides}`
+          }
+        };
+        addMessage(msg);
+        setRollingSide(null);
+
+        // If AI DM is on, AI might react to the roll
+        if (campaign.isAiDm) {
+          triggerAiDm([...campaign.playerChat, msg]);
+        }
+    }, 600);
   };
 
   const handleRequestRoll = (checkType: string) => {
@@ -176,7 +221,6 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
       senderName: campaign.isAiDm ? 'You' : 'DM (You)',
       content: "I've started a video meeting for the party. Click to join!",
       timestamp: Date.now(),
-      // In a real app, this would contain a link
     };
     addMessage(msg);
   };
@@ -231,12 +275,6 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
           content: campaign.isAiDm ? "I have conjured this scene for you:" : `Shared visual: ${imgPrompt}`,
           attachmentUrl: base64Image
         };
-        onUpdateCampaign({
-          ...campaign,
-          playerChat: campaign.playerChat.map(m => m.id === placeholderId ? finalMsg : m).concat([finalMsg]) // Fix concurrency issue by re-appending or mapping logic in real app
-        });
-        // Simplification: Re-read state in functional update or just append for this demo
-        // Better way for this demo without deep state management changes:
         const freshChat = [...campaign.playerChat, finalMsg]; 
         onUpdateCampaign({ ...campaign, playerChat: freshChat });
       }
@@ -253,8 +291,8 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
     <div className="flex flex-col h-full bg-fantasy-900 relative">
       
       {/* Dice Tray */}
-      <div className="bg-fantasy-900 border-b border-fantasy-700 p-3 shadow-md z-10">
-        <div className="flex items-center justify-between mb-2">
+      <div className="bg-fantasy-900 border-b border-fantasy-700 p-4 shadow-xl z-10 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
            <span className="text-xs font-bold text-fantasy-muted uppercase tracking-wider flex items-center gap-2">
              {campaign.isAiDm ? <span className="text-fantasy-accent flex items-center gap-1"><Sparkles size={12}/> AI DM Active</span> : "DM Tools"}
            </span>
@@ -269,9 +307,16 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
               <button onClick={() => handleRequestRoll("Perception")} className="text-xs bg-fantasy-800 border border-fantasy-700 hover:border-fantasy-accent px-2 py-1 rounded text-fantasy-text transition-colors">Roll Percep</button>
            </div>
         </div>
-        <div className="flex gap-4 justify-center items-center">
+        
+        {/* Dice Buttons Row */}
+        <div className="flex gap-4 justify-center items-center py-1">
           {[4, 6, 8, 10, 12, 20].map(d => (
-            <DiceButton key={d} label={`D${d}`} sides={d} onClick={handleDMDiceRoll} />
+            <DiceButton 
+              key={d} 
+              sides={d} 
+              isRolling={rollingSide === d}
+              onClick={handleDMDiceRoll} 
+            />
           ))}
         </div>
       </div>
@@ -282,10 +327,6 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
            <p className="text-center text-fantasy-muted text-sm mt-10">No messages yet.</p>
         )}
         {campaign.playerChat.map(msg => {
-          // Alignment logic: 
-          // If I am DM (isAiDm=false), 'dm' is Me (right). 'user' is left.
-          // If I am Player (isAiDm=true), 'user' is Me (right). 'ai-dm' or 'dm' is Left.
-          
           const isMe = campaign.isAiDm ? msg.senderId === 'user' : msg.senderId === 'dm';
           const isSystem = msg.senderId === 'ai-dm';
 
@@ -307,10 +348,14 @@ export const PlayerChat: React.FC<PlayerChatProps> = ({ campaign, onUpdateCampai
                 )}
 
                 {msg.isRoll && msg.rollResult && (
-                  <div className="mt-1 flex items-center gap-2 bg-black/20 rounded px-2 py-1">
-                     <Dice5 size={14} className="text-fantasy-accent" />
-                     <span className="font-bold text-white text-base">{msg.rollResult.total}</span>
-                     <span className="text-xs text-fantasy-muted font-mono">({msg.rollResult.formula})</span>
+                  <div className="mt-2 flex items-center gap-3 bg-black/20 rounded-lg p-2 border border-white/5">
+                     <div className={`w-8 h-8 flex items-center justify-center rounded-full bg-fantasy-900 shadow-inner ${getDiceStyles(parseInt(msg.rollResult.formula.replace('1d', '')) || 20).text}`}>
+                       <Dice5 size={18} className="animate-pulse" />
+                     </div>
+                     <div className="flex flex-col">
+                        <span className="font-bold text-white text-lg leading-none">{msg.rollResult.total}</span>
+                        <span className="text-[10px] text-fantasy-muted font-mono">{msg.rollResult.formula}</span>
+                     </div>
                   </div>
                 )}
               </div>

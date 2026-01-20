@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Group, CalendarEvent, Campaign } from '../types';
+import { User, Group, CalendarEvent, Campaign, UserRole } from '../types';
 import { 
   Users, MessageSquare, Calendar as CalendarIcon, Dice5, 
   Settings, Plus, Lock, Video, Search, Bell, Shield, X, Check, Mail, Clock, ArrowLeft, Home,
@@ -64,15 +64,15 @@ export const SocialHub: React.FC<SocialHubProps> = ({
   // Filter groups
   const visibleGroups = groups.filter(g => {
     const isMember = g.memberIds.includes(currentUser.id);
-    const isAdmin = currentUser.isAdmin;
+    const isAdmin = currentUser.role === 'admin';
     const isPublic = !g.isPrivate;
     return isMember || isAdmin || isPublic;
   });
 
   const myGroups = visibleGroups.filter(g => g.memberIds.includes(currentUser.id));
 
-  // Access Control for D&D: User must be in at least one group or be admin
-  const hasDndAccess = myGroups.length > 0 || currentUser.isAdmin;
+  // Access Control for D&D: User must be in at least one group or be admin/dm
+  const hasDndAccess = myGroups.length > 0 || currentUser.role === 'admin' || currentUser.role === 'dungeon_master';
 
   // --- Chat Handlers ---
   const sendGroupMessage = (text: string) => {
@@ -181,7 +181,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
         email: editingUser.email || `user${Date.now()}@example.com`,
         avatarUrl: editingUser.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${editingUser.name}`,
         status: 'offline',
-        isAdmin: editingUser.isAdmin || false
+        role: editingUser.role || 'member'
       };
       updatedUsers.push(newUser);
     }
@@ -202,7 +202,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
   };
 
   const handleAddUser = () => {
-    setEditingUser({ isAdmin: false, avatarUrl: '' });
+    setEditingUser({ role: 'member', avatarUrl: '' });
     setShowUserModal(true);
   };
 
@@ -226,6 +226,18 @@ export const SocialHub: React.FC<SocialHubProps> = ({
     onUpdateUsers(updatedUsers);
     
     setShowProfileModal(false);
+  };
+
+  // --- Helper to render role label
+  const renderRoleBadge = (role: UserRole) => {
+    switch(role) {
+      case 'admin':
+        return <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Admin</span>;
+      case 'dungeon_master':
+        return <span className="bg-fantasy-accent/20 text-fantasy-accent border border-fantasy-accent/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase">DM</span>;
+      case 'member':
+        return <span className="bg-fantasy-700 text-fantasy-muted px-2 py-0.5 rounded text-[10px] font-bold uppercase">Member</span>;
+    }
   };
 
   // --- Views ---
@@ -304,7 +316,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Groups</h3>
                 <p className="text-fantasy-muted">
-                  {currentUser.isAdmin ? "Manage parties, members, and privacy settings." : "View your groups."}
+                  {currentUser.role === 'admin' ? "Manage parties, members, and privacy settings." : "View your groups."}
                 </p>
              </div>
              <div className="flex items-center gap-2 text-green-400 font-bold text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
@@ -337,7 +349,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
           )}
 
           {/* Card 5: User Management (Admin Only) */}
-          {currentUser.isAdmin && (
+          {currentUser.role === 'admin' && (
              <div 
                onClick={() => setCurrentView('users')}
                className="group relative h-64 bg-fantasy-800 rounded-2xl border border-fantasy-700 p-8 flex flex-col justify-between cursor-pointer hover:border-red-500/50 hover:bg-fantasy-800/80 transition-all overflow-hidden"
@@ -348,7 +360,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                      <UserCog size={24} />
                    </div>
                    <h3 className="text-2xl font-bold text-white mb-2">User Management</h3>
-                   <p className="text-fantasy-muted">Manage system users, permissions, and status.</p>
+                   <p className="text-fantasy-muted">Configure roles (Admin, DM, Member) and system access.</p>
                 </div>
                 <div className="flex items-center gap-2 text-red-400 font-bold text-sm opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
                   <span>Manage Users</span> <ChevronRight size={16} />
@@ -477,7 +489,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                  <p className="text-sm text-fantasy-muted mb-4 line-clamp-2">{group.description}</p>
                  <div className="mt-auto flex justify-between items-center pt-4 border-t border-fantasy-700">
                     <span className="text-xs text-fantasy-muted">{group.memberIds.length} members</span>
-                    {currentUser.isAdmin && (
+                    {currentUser.role === 'admin' && (
                        <div className="flex gap-2">
                           <button onClick={() => handleEditGroup(group)} className="p-1.5 text-fantasy-muted hover:text-white hover:bg-fantasy-700 rounded"><Edit size={16} /></button>
                           <button onClick={() => handleDeleteGroup(group.id)} className="p-1.5 text-fantasy-muted hover:text-red-400 hover:bg-fantasy-700 rounded"><Trash2 size={16} /></button>
@@ -516,7 +528,9 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                             {u.status}
                          </span>
                       </td>
-                      <td className="p-4 text-fantasy-text text-sm">{u.isAdmin ? 'Admin' : 'User'}</td>
+                      <td className="p-4 text-fantasy-text text-sm">
+                        {renderRoleBadge(u.role)}
+                      </td>
                       <td className="p-4 text-right">
                          <button onClick={() => handleEditUser(u)} className="p-1.5 text-fantasy-muted hover:text-white"><Edit size={16} /></button>
                          <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-fantasy-muted hover:text-red-400"><Trash2 size={16} /></button>
@@ -544,12 +558,12 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                  </h2>
               </div>
               <div className="flex items-center gap-3">
-                 {currentView === 'groups' && currentUser.isAdmin && (
+                 {currentView === 'groups' && currentUser.role === 'admin' && (
                    <button onClick={() => { setEditingGroup({}); setShowGroupModal(true); }} className="flex items-center gap-2 bg-fantasy-accent text-fantasy-900 px-3 py-1.5 rounded-lg text-sm font-bold">
                      <Plus size={16} /> New Group
                    </button>
                  )}
-                 {currentView === 'users' && currentUser.isAdmin && (
+                 {currentView === 'users' && currentUser.role === 'admin' && (
                    <button onClick={handleAddUser} className="flex items-center gap-2 bg-fantasy-accent text-fantasy-900 px-3 py-1.5 rounded-lg text-sm font-bold">
                      <Plus size={16} /> Add User
                    </button>
@@ -644,9 +658,22 @@ export const SocialHub: React.FC<SocialHubProps> = ({
                      <label className="text-xs font-bold text-fantasy-muted uppercase">Email</label>
                      <input className="w-full bg-fantasy-900 border border-fantasy-700 rounded p-2 text-white outline-none" value={editingUser.email || ''} onChange={e => setEditingUser({...editingUser, email: e.target.value})} />
                   </div>
-                  <div className="flex items-center gap-2 pt-2">
-                     <input type="checkbox" id="isAdmin" checked={editingUser.isAdmin || false} onChange={e => setEditingUser({...editingUser, isAdmin: e.target.checked})} className="rounded bg-fantasy-900 border-fantasy-700 text-fantasy-accent" />
-                     <label htmlFor="isAdmin" className="text-sm text-white">Administrator Access</label>
+                  <div>
+                     <label className="text-xs font-bold text-fantasy-muted uppercase">System Role</label>
+                     <select 
+                       className="w-full bg-fantasy-900 border border-fantasy-700 rounded p-2 text-white outline-none"
+                       value={editingUser.role || 'member'}
+                       onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}
+                     >
+                       <option value="member">Member</option>
+                       <option value="dungeon_master">Dungeon Master</option>
+                       <option value="admin">Administrator</option>
+                     </select>
+                     <p className="text-xs text-fantasy-muted mt-1">
+                       {editingUser.role === 'admin' && 'Full access to system settings and user management.'}
+                       {editingUser.role === 'dungeon_master' && 'Access to AI Co-Pilot and campaign tools.'}
+                       {editingUser.role === 'member' && 'Standard player access.'}
+                     </p>
                   </div>
                </div>
                <div className="flex gap-3 mt-6">
