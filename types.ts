@@ -28,13 +28,15 @@ export interface ExtractedCard {
 
 // --- User Management & DM Types ---
 
+export type UserRole = 'member' | 'admin' | 'dungeon_master';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatarUrl: string;
   status: 'online' | 'offline' | 'busy' | 'in-game';
-  isAdmin?: boolean;
+  role: UserRole;
   calendarSettings?: {
     syncEnabled: boolean;
     provider: 'google' | 'outlook' | 'apple';

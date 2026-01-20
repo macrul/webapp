@@ -8,17 +8,22 @@ import { SessionLogger } from './components/SessionLogger';
 import { PlayerChat } from './components/PlayerChat';
 import { DirectMessaging } from './components/DirectMessaging';
 import { SocialHub } from './components/SocialHub';
+import { LoginPage } from './components/LoginPage';
 import { INITIAL_GREETING } from './constants';
 
 type View = 'copilot' | 'characters' | 'logs' | 'chat';
 
+// Admin Domain Rule: Only emails from this domain receive Admin privileges.
+const ADMIN_DOMAIN = '@macrul.com';
+
 // Mock Users Data
+// Roles: 'admin', 'dungeon_master', 'member'
 const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'DM Admin', email: 'dm@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Admin', status: 'online', isAdmin: true, calendarSettings: { syncEnabled: true, provider: 'google', privacyLevel: 'full-details' } },
-  { id: 'u2', name: 'Alice Walker', email: 'alice@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Alice', status: 'in-game', calendarSettings: { syncEnabled: true, provider: 'google', privacyLevel: 'free-busy' } },
-  { id: 'u3', name: 'Bob Builder', email: 'bob@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Bob', status: 'offline' },
-  { id: 'u4', name: 'Charlie Day', email: 'charlie@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Charlie', status: 'busy' },
-  { id: 'u5', name: 'Eve Stranger', email: 'eve@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Eve', status: 'online' }, // Not in main group
+  { id: 'u1', name: 'DM Admin', email: 'dm@macrul.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Admin', status: 'online' as const, calendarSettings: { syncEnabled: true, provider: 'google' as const, privacyLevel: 'full-details' as const }, role: 'admin' },
+  { id: 'u2', name: 'Alice Walker', email: 'alice@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Alice', status: 'in-game' as const, calendarSettings: { syncEnabled: true, provider: 'google' as const, privacyLevel: 'free-busy' as const }, role: 'member' },
+  { id: 'u3', name: 'Bob Builder', email: 'bob@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Bob', status: 'offline' as const, role: 'member' },
+  { id: 'u4', name: 'Charlie Day', email: 'charlie@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Charlie', status: 'busy' as const, role: 'member' },
+  { id: 'u5', name: 'Eve Stranger', email: 'eve@example.com', avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Eve', status: 'online' as const, role: 'dungeon_master' }, // Not in main group, but a DM
 ];
 
 const MOCK_GROUPS: Group[] = [
@@ -46,6 +51,9 @@ const MOCK_EVENTS: CalendarEvent[] = [
 ];
 
 export default function App() {
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   // App Mode State
   const [isInDnDMode, setIsInDnDMode] = useState(false);
   
@@ -161,6 +169,19 @@ export default function App() {
 
   // --- Handlers ---
 
+  const handleLogin = () => {
+    // In a real app, this would come from the auth provider result
+    // For now, we simulate logging in as the main Admin User
+    setCurrentUser(MOCK_USERS[0]);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsInDnDMode(false);
+    setActiveCampaignId(null);
+  };
+
   const handleLaunchDnD = () => {
     setIsInDnDMode(true);
     // When launching, reset view to Chat
@@ -223,8 +244,16 @@ export default function App() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const formatRole = (role: string) => {
+    switch(role) {
+      case 'dungeon_master': return '(DM)';
+      case 'admin': return '(Admin)';
+      default: return '';
+    }
+  };
+
   const UserSwitcher = () => (
-    <div className="fixed bottom-4 right-4 z-[100] bg-fantasy-900/95 border border-fantasy-accent/30 rounded-lg p-3 shadow-2xl backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4">
+    <div className="fixed bottom-4 right-4 z-[100] bg-fantasy-900/95 border border-fantasy-accent/30 rounded-lg p-3 shadow-2xl backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 group hover:opacity-100 opacity-50 transition-opacity">
       <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
          <Eye size={12} className="text-fantasy-accent" />
          <span className="text-[10px] text-fantasy-accent uppercase font-bold tracking-wider">Preview As</span>
@@ -238,8 +267,8 @@ export default function App() {
             const u = users.find(u => u.id === e.target.value);
             if (u) {
               setCurrentUser(u);
-              // If user switches to non-admin while on copilot, redirect to chat
-              if (!u.isAdmin && activeView === 'copilot') {
+              // If user switches to member while on copilot, redirect to chat
+              if (u.role === 'member' && activeView === 'copilot') {
                 setActiveView('chat');
               }
             }
@@ -247,15 +276,23 @@ export default function App() {
         >
           {users.map(u => (
             <option key={u.id} value={u.id}>
-              {u.name} {u.isAdmin ? '(Admin)' : ''}
+              {u.name} {formatRole(u.role)}
             </option>
           ))}
         </select>
+        <button onClick={handleLogout} className="p-1.5 hover:text-red-400 text-fantasy-muted" title="Log Out">
+           <LogOut size={14} />
+        </button>
       </div>
     </div>
   );
 
   // --- Render ---
+
+  // Auth Gate
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   if (!isInDnDMode) {
     return (
@@ -357,8 +394,8 @@ export default function App() {
               <NavItem active={activeView === 'characters'} onClick={() => setActiveView('characters')} icon={<UsersIcon size={20}/>} label="Characters" />
               <NavItem active={activeView === 'logs'} onClick={() => setActiveView('logs')} icon={<Clock size={20}/>} label="Session Logs" />
               
-              {/* Only allow Admins to access the AI Co-Pilot (DM Assist) */}
-              {currentUser.isAdmin && (
+              {/* Admins and DMs can access the AI Co-Pilot */}
+              {(currentUser.role === 'admin' || currentUser.role === 'dungeon_master') && (
                 <NavItem active={activeView === 'copilot'} onClick={() => setActiveView('copilot')} icon={<Sparkles size={20}/>} label="AI Co-Pilot" />
               )}
             </nav>
@@ -461,7 +498,7 @@ export default function App() {
 
             {/* View Container */}
             <main className="flex-1 overflow-hidden relative">
-              {activeView === 'copilot' && currentUser.isAdmin && (
+              {(currentUser.role === 'admin' || currentUser.role === 'dungeon_master') && activeView === 'copilot' && (
                 <AIChat campaign={activeCampaign} onUpdateCampaign={handleUpdateCampaign} />
               )}
               {activeView === 'characters' && (
